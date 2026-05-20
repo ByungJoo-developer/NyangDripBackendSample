@@ -25,7 +25,7 @@ public class BoardController {
     @GetMapping("/list")
     public List<Map<String, Object>> getBoardList(
     		@RequestParam(value = "boardMstId", required = false) String boardMstId,
-    		@RequestParam(value = "page", defaultValue = "0") int page, // 몇 페이지인지
+    		@RequestParam(value = "page", defaultValue = "1") int page, // 몇 페이지인지
     	    @RequestParam(value = "size", defaultValue = "5") int size // 한 페이지에 몇 개 볼지
     ) {
         
