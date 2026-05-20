@@ -1,13 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "../../mybatis-3-mapper.dtd">
 
-<mapper namespace="com.nyang.drip.mapper.BoardMapper">
+<!-- 자바 Mapper 인터페이스 와 동일하게 작정 -->
+<mapper namespace="com.nyang.drip.board.mapper.BoardMapper">
 
-    <select id="selectBoardList" resultType="map">
+    <select id="selectBoardList" parameterType="map" resultType="map">
 	<![CDATA[
-		SELECT B.BOARD_CATEGORY_ID, B.BOARD_ID, B.USER_ID   
-		FROM BOARD B 
-		WHERE ROWNUM < 10
+		SELECT /*+ INDEX_DESC(B PK_BOARD) */ 
+				B.BOARD_CATEGORY_ID,
+				B.BOARD_ID,
+				B.USER_ID,
+				B.TITLE,
+				CAST(B.CONTENT AS VARCHAR2(4000)) AS CONTENT
+        FROM ADMIN.BOARD B
+        WHERE B.BOARD_CATEGORY_ID = #{catId}
+          AND B.BOARD_ID < 'BRD9999999999'
+        ORDER BY B.BOARD_ID DESC
+        OFFSET #{offset} ROWS FETCH NEXT #{limit} ROWS ONLY
 	]]>	
     </select>
 
