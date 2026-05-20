@@ -7,17 +7,31 @@
     <select id="selectBoardList" parameterType="map" resultType="map">
 	<![CDATA[
 		SELECT /*+ INDEX_DESC(B PK_BOARD) */ 
-				B.BOARD_CATEGORY_ID,
+				B.BOARD_MST_ID,
 				B.BOARD_ID,
 				B.USER_ID,
 				B.TITLE,
 				CAST(B.CONTENT AS VARCHAR2(4000)) AS CONTENT
         FROM ADMIN.BOARD B
-        WHERE B.BOARD_CATEGORY_ID = #{catId}
-          AND B.BOARD_ID < 'BRD9999999999'
+        WHERE B.BOARD_MST_ID = #{boardMstId}
         ORDER BY B.BOARD_ID DESC
         OFFSET #{offset} ROWS FETCH NEXT #{limit} ROWS ONLY
 	]]>	
     </select>
+    
+    <select id="selectBoardDetail" parameterType="map" resultType="map">
+	<![CDATA[
+		SELECT  B.BOARD_MST_ID,
+				B.BOARD_ID,
+				B.USER_ID,
+				B.TITLE,
+				CAST(B.CONTENT AS VARCHAR2(4000)) AS CONTENT
+        
+        FROM	ADMIN.BOARD B
+        WHERE 	B.BOARD_MST_ID = #{boardMstId}
+        AND   	B.BOARD_ID     = #{boardId} 
+	]]>	
+    </select>
+    
 
 </mapper>

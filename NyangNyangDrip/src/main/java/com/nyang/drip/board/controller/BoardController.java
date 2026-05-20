@@ -1,5 +1,6 @@
 package com.nyang.drip.board.controller;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -7,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.nyang.drip.board.service.BoardService;
@@ -21,8 +23,38 @@ public class BoardController {
 
     // 웹 브라우저나 Vue.js가 GET 방식으로 /api/board/list 주소를 요청하면 이 메서드가 실행됩니다.
     @GetMapping("/list")
-    public List<Map<String, Object>> getBoardList() {
-        // 서비스에게 DB 데이터 긁어오라고 시키고 그 결과를 바로 프론트엔드로 쏩니다!
-        return boardService.getBoardList();
+    public List<Map<String, Object>> getBoardList(
+    		@RequestParam(value = "boardMstId", required = false) String boardMstId,
+    		@RequestParam(value = "page", defaultValue = "0") int page, // 몇 페이지인지
+    	    @RequestParam(value = "size", defaultValue = "5") int size // 한 페이지에 몇 개 볼지
+    ) {
+        
+    	
+    	int offset = (page - 1) * size; // 여기서 계산 완료!
+        int limit = size;
+    	
+    	Map<String, Object> params = new HashMap<>();
+    	params.put("boardMstId", boardMstId);
+    	params.put("offset", 	 offset);
+    	params.put("limit", 	 limit);
+    	
+    	// 서비스에게 DB 데이터 긁어오라고 시키고 그 결과를 바로 프론트엔드로 쏩니다!
+        return boardService.getBoardList(params);
     }
+    
+    
+    @GetMapping("/detail")
+    public Map<String, Object> getBoardDetail(
+    		@RequestParam(value = "boardMstId", required = false) String boardMstId,
+    		@RequestParam(value = "boardId", required = false) String boardId
+    ) {
+       
+    	Map<String, Object> params = new HashMap<>();
+    	params.put("boardMstId", boardMstId);
+    	params.put("boardId", 	 boardId);
+    	
+    	// 서비스에게 DB 데이터 긁어오라고 시키고 그 결과를 바로 프론트엔드로 쏩니다!
+        return boardService.getBoardDetail(params);
+    }
+    
 }

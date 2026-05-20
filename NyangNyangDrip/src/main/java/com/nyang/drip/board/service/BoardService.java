@@ -5,6 +5,8 @@ import java.util.Map;
 
 public interface BoardService {
 
-	List<Map<String, Object>> getBoardList();	// 게시글 목록 조회
-
+	List<Map<String, Object>> getBoardList(Map<String, Object> params);	// 게시글 목록 조회
+	
+	Map<String, Object> getBoardDetail(Map<String, Object> params);								// 게시글 목록 조회
+	
 }
