@@ -62,12 +62,58 @@
     
 	<update id="updateBoard" parameterType="map">
 	<![CDATA[
-	    /* 게시판 업데이트 */
+	    /* 게시판 수정 및 역인덱스 동기화 (UPDATE -> DELETE -> INSERT) */
+	    
+	    /* 1. 메인 게시판 테이블 업데이트 */
 	    UPDATE	BOARD
 	    SET 	TITLE 		 = #{title},
 	        	CONTENT 	 = #{content}
 	    WHERE	BOARD_MST_ID = #{boardMstId} 	
 	    AND		BOARD_ID     = #{boardId}
+	    
+	    /* 2. 기존 역인덱스 테이블 데이터 삭제 (제목 '01'과 내용 '02' 싹 다 날림) */
+        DELETE FROM ADMIN.BOARD_INVERTED_INDEX
+        WHERE  BOARD_MST_ID = #{boardMstId}
+        AND    BOARD_ID     = #{boardId};
+        
+		/* 3. [제목 파싱 및 INSERT] KEYWORD_TYPE = '01' */
+        V_TITLE_CNT := REGEXP_COUNT(#{title}, '[^ ]+');
+        
+        IF V_TITLE_CNT > 0 THEN
+            FOR i IN 1..V_TITLE_CNT LOOP
+                V_WORD := REGEXP_SUBSTR(#{title}, '[^ ]+', 1, i);
+                
+                IF V_WORD IS NOT NULL AND LENGTHB(V_WORD) &lt;= 100 THEN
+                    INSERT INTO ADMIN.BOARD_INVERTED_INDEX (
+                        BOARD_MST_ID, BOARD_ID, KEYWORD_TYPE, KEYWORD_SEQ, KEYWORD, CREATE_DATE
+                    ) VALUES (
+                        #{boardMstId}, #{boardId}, '01', V_SEQ, V_WORD, SYSDATE
+                    );
+                    
+                    V_SEQ := V_SEQ + 1; -- 제목 넣으면서 SEQ 증가
+                END IF;
+            END LOOP;
+        END IF;
+        
+        /* 4. [본문 파싱 및 INSERT] KEYWORD_TYPE = '02' (위에서 증가된 V_SEQ 바통을 이어받음) */
+        V_BODY_CNT := REGEXP_COUNT(#{content}, '[^ ]+');
+        
+        IF V_BODY_CNT > 0 THEN
+            FOR i IN 1..V_BODY_CNT LOOP
+                V_WORD := REGEXP_SUBSTR(#{content}, '[^ ]+', 1, i);
+                
+                IF V_WORD IS NOT NULL AND LENGTHB(V_WORD) &lt;= 100 THEN
+                    INSERT INTO ADMIN.BOARD_INVERTED_INDEX (
+                        BOARD_MST_ID, BOARD_ID, KEYWORD_TYPE, KEYWORD_SEQ, KEYWORD, CREATE_DATE
+                    ) VALUES (
+                        #{boardMstId}, #{boardId}, '02', V_SEQ, V_WORD, SYSDATE
+                    );
+                    
+                    V_SEQ := V_SEQ + 1; -- 본문 넣으면서 연달아 SEQ 증가
+                END IF;
+            END LOOP;
+        END IF;
+	    
 	]]>
 	</update>
     
