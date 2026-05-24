@@ -14,6 +14,14 @@ public class BoardServiceImpl implements BoardService {
 	@Autowired
     private BoardMapper boardMapper; // Mapper 인터페이스 주입
 	
+	@Override
+    public List<Map<String, Object>> getBoardSearchList(Map<String, Object> params) {
+
+    	return boardMapper.selectBoardList(params);
+                                                   
+    }
+	
+	
     @Override
     public List<Map<String, Object>> getBoardList(Map<String, Object> params) {
 
@@ -27,6 +35,12 @@ public class BoardServiceImpl implements BoardService {
     	return boardMapper.selectBoardDetail(params);
     	
     }
+    
+    @Override
+    public int updateBoard(Map<String, Object>  params) {						// 게시글 수정 
+
+    	return boardMapper.updateBoard(params);
+    } 
     
     
 }

@@ -7,8 +7,12 @@ import java.util.Map;
 @Mapper // 🌟 이 어노테이션이 핵심입니다!
 public interface BoardMapper {
 
+	List<Map<String, Object>> selectBoardSearchList(Map<String, Object> params);
+	
     List<Map<String, Object>> selectBoardList(Map<String, Object> params);
 
     Map<String, Object> selectBoardDetail(Map<String, Object> params);
+    
+    int updateBoard(Map<String, Object> params); 
     
 }

@@ -4,6 +4,30 @@
 <!-- 자바 Mapper 인터페이스 와 동일하게 작정 -->
 <mapper namespace="com.nyang.drip.board.mapper.BoardMapper">
 
+	<select id="selectBoardSearchList" parameterType="map" resultType="map">
+	<![CDATA[
+	    /* 게시판 리스트 조회 - 키워드 역인덱스 검색 (부분범위 처리 최적화) */
+	    SELECT /*+ LEADING(X) USE_NL(B) INDEX(B PK_BOARD) NOPARALLEL */
+	           B.BOARD_MST_ID,
+	           B.BOARD_ID,
+	           B.USER_ID,
+	           B.TITLE,
+	           B.CONTENT
+	    FROM   (
+	            SELECT /*+ INDEX(BI IDX_01_BOARD_INVERTED) */ 
+	                   BI.BOARD_MST_ID, BI.BOARD_ID
+	            FROM   ADMIN.BOARD_INVERTED_INDEX BI
+	            WHERE  BI.BOARD_MST_ID = #{boardMstId}
+	            AND    BI.KEYWORD_TYPE = #{keywordType}				/* 01:제목, 02:내용 */ 
+	            AND    BI.KEYWORD 	   = #{keyword}					/* keyword */
+	           ) X
+	    INNER JOIN ADMIN.BOARD B 
+	       ON B.BOARD_MST_ID = X.BOARD_MST_ID 
+	      AND B.BOARD_ID = X.BOARD_ID
+		OFFSET #{offset} ROWS FETCH NEXT #{limit} ROWS ONLY			/* 페이징 처리 변수 */	      
+	]]>	
+	</select>
+
     <select id="selectBoardList" parameterType="map" resultType="map">
 	<![CDATA[
 		/* 게시판 리스트 조회 */
@@ -34,6 +58,21 @@
         AND   	B.BOARD_ID     = #{boardId} 	/* 게시판 아이디 */
 	]]>	
     </select>
+    
+    
+	<update id="updateBoard" parameterType="map">
+	<![CDATA[
+	    /* 게시판 업데이트 */
+	    UPDATE	BOARD
+	    SET 	TITLE 		 = #{title},
+	        	CONTENT 	 = #{content}
+	    WHERE	BOARD_MST_ID = #{boardMstId} 	
+	    AND		BOARD_ID     = #{boardId}
+	]]>
+	</update>
+    
+    
+    
     
 
 </mapper>
