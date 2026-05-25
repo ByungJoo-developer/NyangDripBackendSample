@@ -13,6 +13,9 @@ public interface BoardMapper {
 
     Map<String, Object> selectBoardDetail(Map<String, Object> params);
     
-    int updateBoard(Map<String, Object> params); 
+    int upsertBoard(Map<String, Object> params);
+    
+    int deleteBoard(Map<String, Object> params);
+    
     
 }

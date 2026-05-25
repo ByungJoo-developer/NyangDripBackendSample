@@ -5,8 +5,7 @@
 <mapper namespace="com.nyang.drip.board.mapper.BoardMapper">
 
 	<select id="selectBoardSearchList" parameterType="map" resultType="map">
-	<![CDATA[
-	    /* 게시판 리스트 조회 - 키워드 역인덱스 검색 (부분범위 처리 최적화) */
+		/* 게시판 리스트 조회 - 키워드 역인덱스 검색 (부분범위 처리 최적화) */
 	    SELECT /*+ LEADING(X) USE_NL(B) INDEX(B PK_BOARD) NOPARALLEL */
 	           B.BOARD_MST_ID,
 	           B.BOARD_ID,
@@ -18,15 +17,26 @@
 	                   BI.BOARD_MST_ID, BI.BOARD_ID
 	            FROM   ADMIN.BOARD_INVERTED_INDEX BI
 	            WHERE  BI.BOARD_MST_ID = #{boardMstId}
-	            AND    BI.KEYWORD_TYPE = #{keywordType}				/* 01:제목, 02:내용 */ 
-	            AND    BI.KEYWORD 	   = #{keyword}					/* keyword */
+	            AND    BI.KEYWORD_TYPE = #{keywordType}
+	
+	            <if test="keywordList != null and keywordList.size() > 0">
+	            AND    BI.KEYWORD IN 
+	                <foreach collection="keywordList" item="item" open="(" separator="," close=")">             
+	                    #{item, jdbcType=VARCHAR}  
+	                </foreach>
+	            </if>
+	            
 	           ) X
 	    INNER JOIN ADMIN.BOARD B 
 	       ON B.BOARD_MST_ID = X.BOARD_MST_ID 
 	      AND B.BOARD_ID = X.BOARD_ID
-		OFFSET #{offset} ROWS FETCH NEXT #{limit} ROWS ONLY			/* 페이징 처리 변수 */	      
-	]]>	
+	    
+		<![CDATA[
+	    	OFFSET #{offset} ROWS FETCH NEXT #{limit} ROWS ONLY
+	    ]]>
 	</select>
+
+
 
     <select id="selectBoardList" parameterType="map" resultType="map">
 	<![CDATA[
@@ -59,62 +69,74 @@
 	]]>	
     </select>
     
+    <delete id="deleteBoard" parameterType="map">
+	    /* 게시물 단위 통합 삭제 엔진 */
+	    BEGIN
+	        -- 1. 해당 게시글의 역인덱스 토큰 데이터 먼저 삭제 (참조 무결성 방어)
+	        DELETE FROM ADMIN.BOARD_INVERTED_INDEX
+	        WHERE  BOARD_MST_ID = #{boardMstId}
+	        AND    BOARD_ID     = #{boardId};
+	        
+	        -- 2. 메인 게시판 테이블에서 해당 게시글 딱 1건 삭제
+	        DELETE FROM BOARD
+	        WHERE  BOARD_MST_ID = #{boardMstId}
+	        AND    BOARD_ID     = #{boardId};
+	    END;
+	</delete>
     
-	<update id="updateBoard" parameterType="map">
-	<![CDATA[
-	    /* 게시판 수정 및 역인덱스 동기화 (UPDATE -> DELETE -> INSERT) */
-	    
-	    /* 1. 메인 게시판 테이블 업데이트 */
-	    UPDATE	BOARD
-	    SET 	TITLE 		 = #{title},
-	        	CONTENT 	 = #{content}
-	    WHERE	BOARD_MST_ID = #{boardMstId} 	
-	    AND		BOARD_ID     = #{boardId}
-	    
-	    /* 2. 기존 역인덱스 테이블 데이터 삭제 (제목 '01'과 내용 '02' 싹 다 날림) */
-        DELETE FROM ADMIN.BOARD_INVERTED_INDEX
-        WHERE  BOARD_MST_ID = #{boardMstId}
-        AND    BOARD_ID     = #{boardId};
-        
-		/* 3. [제목 파싱 및 INSERT] KEYWORD_TYPE = '01' */
-        V_TITLE_CNT := REGEXP_COUNT(#{title}, '[^ ]+');
-        
-        IF V_TITLE_CNT > 0 THEN
-            FOR i IN 1..V_TITLE_CNT LOOP
-                V_WORD := REGEXP_SUBSTR(#{title}, '[^ ]+', 1, i);
-                
-                IF V_WORD IS NOT NULL AND LENGTHB(V_WORD) &lt;= 100 THEN
-                    INSERT INTO ADMIN.BOARD_INVERTED_INDEX (
-                        BOARD_MST_ID, BOARD_ID, KEYWORD_TYPE, KEYWORD_SEQ, KEYWORD, CREATE_DATE
-                    ) VALUES (
-                        #{boardMstId}, #{boardId}, '01', V_SEQ, V_WORD, SYSDATE
-                    );
-                    
-                    V_SEQ := V_SEQ + 1; -- 제목 넣으면서 SEQ 증가
-                END IF;
-            END LOOP;
-        END IF;
-        
-        /* 4. [본문 파싱 및 INSERT] KEYWORD_TYPE = '02' (위에서 증가된 V_SEQ 바통을 이어받음) */
-        V_BODY_CNT := REGEXP_COUNT(#{content}, '[^ ]+');
-        
-        IF V_BODY_CNT > 0 THEN
-            FOR i IN 1..V_BODY_CNT LOOP
-                V_WORD := REGEXP_SUBSTR(#{content}, '[^ ]+', 1, i);
-                
-                IF V_WORD IS NOT NULL AND LENGTHB(V_WORD) &lt;= 100 THEN
-                    INSERT INTO ADMIN.BOARD_INVERTED_INDEX (
-                        BOARD_MST_ID, BOARD_ID, KEYWORD_TYPE, KEYWORD_SEQ, KEYWORD, CREATE_DATE
-                    ) VALUES (
-                        #{boardMstId}, #{boardId}, '02', V_SEQ, V_WORD, SYSDATE
-                    );
-                    
-                    V_SEQ := V_SEQ + 1; -- 본문 넣으면서 연달아 SEQ 증가
-                END IF;
-            END LOOP;
-        END IF;
-	    
-	]]>
+	<update id="upsertBoard" parameterType="map">
+		/* 게시판 역인덱스 통합 UPSERT 엔진 (오라클 변수 선언 버전) */
+		DECLARE
+			/* 1. 자바에서 넘어온 boardId를 담거나, 신규 발급받을 오라클 변수 선언 */
+        	V_BOARD_ID VARCHAR2(16) := #{boardId, jdbcType=VARCHAR};
+
+	    /* 1. 메인 게시판 테이블 업데이트 (오라클 다중 구문 처리를 위해 BEGIN~END로 살짝 감싸줍니다) */
+	    BEGIN
+	        
+	        /* 💡 2. [등록 상황 방어] 만약 자바에서 넘어온 boardId가 null이면, 오라클 함수로 새 번호를 채웁니다. */
+	        IF V_BOARD_ID IS NULL THEN
+	            V_BOARD_ID := FN_GET_BOARD_SEQ();
+	        END IF;
+	        
+	        /* 1. 메인 게시판 테이블 UPSERT (MERGE 사용) */
+		    MERGE INTO BOARD B
+		    USING DUAL
+		       ON (B.BOARD_MST_ID = #{boardMstId} AND B.BOARD_ID = V_BOARD_ID)
+		    WHEN MATCHED THEN
+		        -- 💡 데이터가 존재하면 수정(UPDATE)
+		        UPDATE SET 
+		            B.TITLE   = #{title},
+		            B.CONTENT = #{content}
+		    WHEN NOT MATCHED THEN
+		        -- 💡 데이터가 없으면 신규 등록(INSERT)
+		        INSERT (B.BOARD_MST_ID, B.BOARD_ID,        B.TITLE,  B.CONTENT,  B.USER_ID, B.CREATE_DATE)
+		        VALUES (#{boardMstId}, V_BOARD_ID, #{title}, #{content}, 'TEST',    SYSDATE);
+	        
+	        /* 2. 기존 역인덱스 데이터 초기화 */
+	        DELETE FROM ADMIN.BOARD_INVERTED_INDEX
+	        WHERE  BOARD_MST_ID = #{boardMstId}
+	        AND    BOARD_ID     = V_BOARD_ID;
+	        
+	        /* 3. 제목(01) 역인덱스 다중 인서트 */
+	        <if test="titleKeywordList != null and titleKeywordList.size() > 0">
+	        INSERT ALL
+	        <foreach collection="titleKeywordList" item="item" index="idx">
+		        INTO ADMIN.BOARD_INVERTED_INDEX (BOARD_MST_ID, BOARD_ID, KEYWORD_TYPE, KEYWORD_SEQ, KEYWORD, CREATE_DATE)
+		        VALUES (#{boardMstId}, V_BOARD_ID, '01', #{idx} + 1, #{item, jdbcType=VARCHAR}, SYSDATE)
+	        </foreach>
+	        SELECT * FROM DUAL;
+	        </if>
+	
+	        /* 4. 본문(02) 역인덱스 다중 인서트 */
+	        <if test="contentKeywordList != null and contentKeywordList.size() > 0">
+	        INSERT ALL
+	        <foreach collection="contentKeywordList" item="item" index="idx">
+		        INTO ADMIN.BOARD_INVERTED_INDEX (BOARD_MST_ID, BOARD_ID, KEYWORD_TYPE, KEYWORD_SEQ, KEYWORD, CREATE_DATE)
+		        VALUES (#{boardMstId}, V_BOARD_ID, '02', #{idx} + 1, #{item, jdbcType=VARCHAR}, SYSDATE)
+	        </foreach>
+	        SELECT * FROM DUAL;
+	        </if>
+	    END;
 	</update>
     
     

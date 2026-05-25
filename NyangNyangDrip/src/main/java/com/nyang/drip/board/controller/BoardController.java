@@ -26,30 +26,6 @@ public class BoardController {
     @Autowired
     private BoardService boardService; // 아까 만든 Service 주입받기
 
-    @GetMapping("/searchList")
-    public List<Map<String, Object>> getBoardSearchList(
-    		@RequestParam(value = "boardMstId", required = false) String boardMstId,
-    	    @RequestParam(value = "title", defaultValue = "") String title,
-    	    @RequestParam(value = "content", defaultValue = "") String content,
-    		@RequestParam(value = "page", defaultValue = "1") int page, 				
-    	    @RequestParam(value = "size", defaultValue = "5") int size 				
-    ) {
-        
-    	
-    	int offset = (page - 1) * size; // 여기서 계산 완료!
-        int limit = size;
-    	
-    	Map<String, Object> params = new HashMap<>();
-    	params.put("boardMstId", boardMstId);
-    	params.put("title", 	 title);
-    	params.put("content", 	 content);
-    	params.put("offset", 	 offset);
-    	params.put("limit", 	 limit);
-    	
-    	return boardService.getBoardSearchList(params);
-    }
-    
-    
     /**
      * 웹 브라우저나 Vue.js가 GET 방식으로 /api/board/list 주소를 요청하면 이 메서드가 실행됩니다.
      * @param boardMstId	게시판 종류 아이디
@@ -61,11 +37,11 @@ public class BoardController {
      */
     @GetMapping("/list")
     public List<Map<String, Object>> getBoardList(
-    		@RequestParam(value = "boardMstId", required = false) String boardMstId,
-    	    @RequestParam(value = "title", defaultValue = "") String title,
-    	    @RequestParam(value = "content", defaultValue = "") String content,
-    		@RequestParam(value = "page", defaultValue = "1") int page, 				
-    	    @RequestParam(value = "size", defaultValue = "5") int size 				
+    		@RequestParam(value = "boardMstId", 	required = false) String boardMstId,
+    		@RequestParam(value = "keywordType", 	defaultValue = "") String keywordType,
+    		@RequestParam(value = "keyword", 		defaultValue = "") String keyword,
+    		@RequestParam(value = "page", 			defaultValue = "1") int page, 				
+    	    @RequestParam(value = "size", 			defaultValue = "5") int size 				
     ) {
         
     	
@@ -73,11 +49,11 @@ public class BoardController {
         int limit = size;
     	
     	Map<String, Object> params = new HashMap<>();
-    	params.put("boardMstId", boardMstId);
-    	params.put("title", 	 title);
-    	params.put("content", 	 content);
-    	params.put("offset", 	 offset);
-    	params.put("limit", 	 limit);
+    	params.put("boardMstId", 	boardMstId);
+    	params.put("keywordType", 	keywordType);
+    	params.put("keyword", 	 	keyword);
+    	params.put("offset", 	 	offset);
+    	params.put("limit", 	 	limit);
     	
     	// 서비스에게 DB 데이터 긁어오라고 시키고 그 결과를 바로 프론트엔드로 쏩니다!
         return boardService.getBoardList(params);
@@ -106,15 +82,15 @@ public class BoardController {
     }
     
     
-    @PostMapping("/update") // 💡 수정이니까 PostMapping
-    public ResponseEntity<Map<String, Object>> updateBoard(@RequestBody Map<String, Object> params) {
+    @PostMapping("/upsert") // 💡 수정이니까 PostMapping
+    public ResponseEntity<Map<String, Object>> upsertBoard(@RequestBody Map<String, Object> params) {
     	
     	Map<String, Object> response = new HashMap<>();
         
         try {
             // 💡 핵심: 서비스에서 '실제 수정된 건수(int)'를 받아옵니다. 자바 규칙으로 받음
             //int updatedRows = boardService.updateBoard(CamelUtil.convertToSnakeCase(params));
-        	int updatedRows = boardService.updateBoard(params);
+        	int updatedRows = boardService.upsertBoard(params);
         	
             // 1. 만약 수정된 건수가 0건이라면? (데이터가 없거나 글번호가 잘못됨)
             if (updatedRows == 0) {
@@ -138,5 +114,37 @@ public class BoardController {
         }
     }
     
+    @PostMapping("/delete") // 💡 delete PostMapping
+    public ResponseEntity<Map<String, Object>> deleteBoard(@RequestBody Map<String, Object> params) {
     
+    	Map<String, Object> response = new HashMap<>();
+        
+        try {
+            // 💡 핵심: 서비스에서 '실제 수정된 건수(int)'를 받아옵니다. 자바 규칙으로 받음
+            //int updatedRows = boardService.updateBoard(CamelUtil.convertToSnakeCase(params));
+        	int updatedRows = boardService.deleteBoard(params);
+        	
+            // 1. 만약 수정된 건수가 0건이라면? (데이터가 없거나 글번호가 잘못됨)
+            if (updatedRows == 0) {
+                response.put("success", false);
+                response.put("message", "수정할 게시글을 찾을 수 없거나 이미 삭제된 글입니다냥... 😿");
+                
+                // 데이터는 없지만 서버 에러는 아니므로 400(Bad Request)이나 404(Not Found)를 던집니다.
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+            }
+            
+            // 2. 실제 1건 이상 성공적으로 수정된 경우
+            response.put("success", true);
+            response.put("message", "게시글이 성공적으로 수정되었습니다냥! 🐾");
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.put("success", false);
+            response.put("message", "서버 오류로 인해 수정에 실패했습니다.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    	
+    
+    }
 }
