@@ -3,6 +3,7 @@ package com.nyang.drip.board.service;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -57,13 +58,13 @@ public class BoardServiceImpl implements BoardService {
     	// 1. 제목 공백 분리하여 리스트화
         if (StringUtils.hasText(title)) {
             String[] titleWords = title.trim().split("\\s+");
-            params.put("titleKeywordList", Arrays.asList(titleWords));
+            params.put("titleKeywordList", Arrays.stream(titleWords).distinct().collect(Collectors.toList()));
         }
         
         // 2. 본문 공백 분리하여 리스트화
         if (StringUtils.hasText(content)) {
             String[] contentWords = content.trim().split("\\s+");
-            params.put("contentKeywordList", Arrays.asList(contentWords));
+            params.put("contentKeywordList", Arrays.stream(contentWords).distinct().collect(Collectors.toList()));
         }
     	
     	return boardMapper.upsertBoard(params);

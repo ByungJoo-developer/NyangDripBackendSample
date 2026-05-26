@@ -6,45 +6,34 @@
 
 	<select id="selectBoardSearchList" parameterType="map" resultType="map">
 		/* 게시판 리스트 조회 - 키워드 역인덱스 검색 (부분범위 처리 최적화) */
-	    SELECT /*+ LEADING(X) USE_NL(B) INDEX(B PK_BOARD) NOPARALLEL */
-	           B.BOARD_MST_ID,
-	           B.BOARD_ID,
-	           B.USER_ID,
-	           B.TITLE,
-	           B.CONTENT,
-	           TO_CHAR(B.CREATE_DATE, 'YYYY-MM-DD HH24:MI:SS') AS CREATE_DATE,
-	           TO_CHAR(B.UPDATE_DATE, 'YYYY-MM-DD HH24:MI:SS') AS UPDATE_DATE,
-		       
-		       /* 오라클 서버 시간(TRUNC(SYSDATE))과 비교해서 오늘이면 Y, 아니면 N */
-		       CASE WHEN TRUNC(B.CREATE_DATE) = TRUNC(SYSDATE) THEN 'Y' 
-		            ELSE 'N' 
-		       END AS IS_TODAY
-	           
-	    FROM   (
-	            SELECT /*+ INDEX(BI IDX_01_BOARD_INVERTED) */ 
-	                   BI.BOARD_MST_ID, BI.BOARD_ID
-	            FROM   ADMIN.BOARD_INVERTED_INDEX BI
-	            WHERE  BI.BOARD_MST_ID = #{boardMstId}
-	            AND    BI.KEYWORD_TYPE = #{keywordType}
-	
-	            <if test="keywordList != null and keywordList.size() > 0">
-	            AND    BI.KEYWORD IN 
-	                <foreach collection="keywordList" item="item" open="(" separator="," close=")">             
-	                    #{item, jdbcType=VARCHAR}  
-	                </foreach>
-	            </if>
-	            
-	           ) X
-	    INNER JOIN ADMIN.BOARD B 
-	       ON B.BOARD_MST_ID = X.BOARD_MST_ID 
-	      AND B.BOARD_ID = X.BOARD_ID
-	    
+		SELECT /*+ LEADING(BI B) USE_NL(B) INDEX(BI IDX_01_BOARD_INVERTED) INDEX(B IDX_02_BOARD)  */
+		       B.BOARD_MST_ID,
+		       B.BOARD_ID,
+		       B.USER_ID,
+		       B.TITLE,
+		       TO_CHAR(B.CREATE_DATE, 'YYYY-MM-DD HH24:MI:SS') AS CREATE_DATE,
+		       TO_CHAR(B.UPDATE_DATE, 'YYYY-MM-DD HH24:MI:SS') AS UPDATE_DATE,
+		       CASE WHEN TRUNC(B.CREATE_DATE) = TRUNC(SYSDATE) THEN 'Y' ELSE 'N' END AS IS_TODAY
+		FROM   ADMIN.BOARD_INVERTED_INDEX BI
+		INNER JOIN ADMIN.BOARD B 
+		   ON B.BOARD_MST_ID = BI.BOARD_MST_ID 
+		  AND B.BOARD_ID     = BI.BOARD_ID
+		WHERE  BI.BOARD_MST_ID = #{boardMstId}
+		  AND  BI.KEYWORD_TYPE = #{keywordType}
+
+          <if test="keywordList != null and keywordList.size() > 0">
+          AND    BI.KEYWORD IN 
+              <foreach collection="keywordList" item="item" open="(" separator="," close=")">             
+                  #{item, jdbcType=VARCHAR}  
+              </foreach>
+          </if>
+
+		ORDER BY B.BOARD_MST_ID ASC, BI.BOARD_ID DESC
 		<![CDATA[
 	    	OFFSET #{offset} ROWS FETCH NEXT #{limit} ROWS ONLY
 	    ]]>
+
 	</select>
-
-
 
     <select id="selectBoardList" parameterType="map" resultType="map">
 	<![CDATA[
@@ -54,7 +43,6 @@
 				B.BOARD_ID,
 				B.USER_ID,
 				B.TITLE,
-				B.CONTENT,
 				TO_CHAR(B.CREATE_DATE, 'YYYY-MM-DD HH24:MI:SS') AS CREATE_DATE,
 				TO_CHAR(B.UPDATE_DATE, 'YYYY-MM-DD HH24:MI:SS') AS UPDATE_DATE,
 		       
@@ -66,7 +54,7 @@
         FROM ADMIN.BOARD B
         WHERE B.BOARD_MST_ID = #{boardMstId}						/* 게시판 마스터 아이디 */
 
-        ORDER BY B.BOARD_ID DESC
+        ORDER BY B.BOARD_MST_ID, B.BOARD_ID DESC
         OFFSET #{offset} ROWS FETCH NEXT #{limit} ROWS ONLY			/* 페이징 처리 변수 */
 	]]>	
     </select>
