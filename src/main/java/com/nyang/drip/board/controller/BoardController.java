@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.nyang.drip.board.service.BoardService;
-import com.nyang.drip.common.util.CamelUtil;
 
 @RestController // 🌟 중요: 순수한 데이터(JSON)를 리턴하는 컨트롤러로 지정합니다.
 @RequestMapping("/api/board") // 🌟 이 컨트롤러의 기본 주소창 주소를 세팅합니다.
