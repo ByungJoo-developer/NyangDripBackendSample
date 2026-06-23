@@ -28,13 +28,12 @@ repositories {
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
     implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:4.0.1'
-    
-	// 🌟 오라클 클라우드 지갑(Wallet) 연결을 위한 필수 세트
-    // ojdbc11: 데이터베이스 드라이버 본체
-	implementation 'com.oracle.database.jdbc:ojdbc11:23.3.0.23.09'
+    implementation 'org.springframework.boot:spring-boot-starter-aop:3.4.0'
+     
+	implementation 'com.oracle.database.jdbc:ojdbc11:23.3.0.23.09'					// 🌟 오라클 클라우드 지갑(Wallet) 연결을 위한 필수 세트 ojdbc11: 데이터베이스 드라이버 본체
     implementation 'com.oracle.database.security:oraclepki:23.3.0.23.09'
-    implementation 'org.bgee.log4jdbc-log4j2:log4jdbc-log4j2-jdbc4.1:1.16'
     implementation 'p6spy:p6spy:3.9.1'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'					// 🟢 Jackson Databind 라이브러리 추가 (빨간 줄 해결용)
    
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
     testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter-test:4.0.1'
