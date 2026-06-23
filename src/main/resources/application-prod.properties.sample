@@ -1,0 +1,10 @@
+# 🌟 중요: 오라클 19c 클라우드 보안 연동을 위해 아래 2줄을 추가합니다.
+spring.datasource.url=jdb_service_wallet
+spring.datasource.oracle.net.ssl_server_dn_match=true
+
+# SSL/보안 설정 추가 (지갑 사용 시 필수)
+spring.datasource.hikari.maximum-pool-size=5
+
+# 마이바티스 매퍼 위치
+# 파일 탐색기에서 보신 폴더명이 mapper라면 무조건 mapper로 적어야 합니다.
+mybatis.mapper-locations=classpath:mappers/**/*.xml
